@@ -20,5 +20,6 @@ Lucas Soares:
 - def de calcular o end fisico
 - def para idenfificar em qual segmento o endereço vai cair
 
+
 Observação: Outras funcionalidades que não foram listadas provavelmente foram desenvolvidas em conjunto com as demais, fazendo parte da construção integrada do projeto.
  
