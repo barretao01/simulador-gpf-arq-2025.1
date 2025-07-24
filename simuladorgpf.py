@@ -55,7 +55,8 @@ def desenhar_mapa(canvas, intervalos, acesso, destino_invadido=None):
     escala = (altura_total - 2 * margem) / (max_addr - min_addr)
 
     canvas.create_rectangle(60, margem, largura, altura_total - margem, outline="white", width=2)
-    canvas.create_text((60 + largura) // 2, margem - 10, text="MEMORIA", fill="white", font=("Courier", 14, "bold"))
+    canvas.create_text((60 + largura) // 2, altura_total - margem + 15, text="MEMORIA", fill="white", font=("Courier", 14, "bold"))
+    # agora o nome "MEMORIA" ta embaixo
 
     cores = {
         "CS": "cyan",
@@ -65,14 +66,14 @@ def desenhar_mapa(canvas, intervalos, acesso, destino_invadido=None):
     }
 
     for nome, (inicio, fim) in segmentos:
-        y1 = margem + (inicio - min_addr) * escala
-        y2 = margem + (fim - min_addr) * escala
+        y1 = altura_total - margem - (inicio - min_addr) * escala
+        y2 = altura_total - margem - (fim - min_addr) * escala
 
         cor = cores.get(nome, "gray")
         meio_y = (y1 + y2) / 2
 
         fill_segment = "#222222" if nome == destino_invadido else ""
-        canvas.create_rectangle(60, y1, largura, y2, outline=cor, width=2, fill=fill_segment)
+        canvas.create_rectangle(60, y2, largura, y1, outline=cor, width=2, fill=fill_segment)
 
         canvas.create_line(60, y1, largura, y1, fill=cor, width=1)  # linha interna
         canvas.create_line(60, y2, largura, y2, fill=cor, width=1)  # linha interna
@@ -84,7 +85,7 @@ def desenhar_mapa(canvas, intervalos, acesso, destino_invadido=None):
         canvas.create_text(largura + 25, y2 + 5, anchor="w", fill=cor, font=("Courier", 10, "bold"), text=f"{hex(fim)[2:].upper()}")
 
     if acesso is not None:
-        y = margem + (acesso - min_addr) * escala
+        y = altura_total - margem - (acesso - min_addr) * escala
         canvas.create_line(60, y, largura, y, fill="white", dash=(3, 2), width=2)
         canvas.create_text(55, y, anchor="e", text=f"\u2192 {hex(acesso)}", fill="white", font=("Courier", 10))
 
