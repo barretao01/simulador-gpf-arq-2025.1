@@ -4,3 +4,21 @@ A ferramenta permite ao usuário inserir valores manuais nos registradores de se
 
 Além de contribuir para a compreensão dos conceitos de segmentação de memória e proteção entre segmentos, o simulador é útil como recurso didático para análise prática dos mecanismos de proteção presentes nas arquiteturas de processadores.
 
+grupo responsavel:
+
+Gabriel Barreto:
+- interface com tkinter
+
+Daniel Barreto:
+- def responsavel por calcular os intervalos de cada segmento
+- def responsavel opor identificar
+
+Davi JC:
+- def responsavel por verificar se ocorre a gpf dentro do simulador
+
+Lucas Soares:
+- def de calcular o end fisico
+- def para idenfificar em qual segmento o endereço vai cair
+
+Observação: Outras funcionalidades que não foram listadas provavelmente foram desenvolvidas em conjunto com as demais, fazendo parte da construção integrada do projeto.
+ 
