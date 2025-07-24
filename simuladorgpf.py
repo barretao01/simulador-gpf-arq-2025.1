@@ -1,9 +1,10 @@
 import tkinter as tk
 from tkinter import ttk, Canvas
 
-# Regras estendidas de GPF, basicamente diz onde cada segmento pode dar gpdf no outro
+# Regras estendidas de GPF, basicamente diz onde cada segmento pode dar GPF no outro
 REGRAS_GPF = [
     ("CS", "SS"),
+    ("SS", "CS"),
     ("CS", "DS"),
     ("CS", "ES"),
     ("SS", "DS"),
@@ -13,36 +14,36 @@ REGRAS_GPF = [
 
 def calcular_endereco_fisico(segmento_hex, offset_hex):
     return int(segmento_hex, 16) * 16 + int(offset_hex, 16)
-#converte a parada pra hex e calcula o endereço fisico da parada 
+
 def calcular_intervalos():
     intervalos = {}
-    for reg, var in reg_values.items():
-        #dicionario do python para armazenar os valores 
-        base = int(var.get(), 16) * 16
-        topo = base + 0xFFFF
+    for reg in reg_values:
+        base = int(reg_values[reg].get(), 16) * 16
+        limite = int(reg_limits[reg].get(), 16)
+        topo = base + limite
         intervalos[reg] = (base, topo)
     return intervalos
-#calula os intevalos certinho na faixa de 64kb
+
 def identificar_segmento(endereco, intervalos):
     for nome, (inicio, fim) in intervalos.items():
-        if inicio <= endereco <= fim: # trivial ne mermao 
+        if inicio <= endereco <= fim:
             return nome
     return "FORA"
 
 def gpf_ocorre(origem, endereco_real, intervalos):
     base_origem = int(reg_values[origem].get(), 16) * 16
-    fim_origem = base_origem + 0xFFFF
+    limite_origem = int(reg_limits[origem].get(), 16)
+    fim_origem = base_origem + limite_origem
     for destino, (base_destino, fim_destino) in intervalos.items():
         if destino == origem:
             continue
         if (origem, destino) in REGRAS_GPF:
-            if base_destino >= base_origem and base_destino <= fim_origem:
-                if endereco_real >= base_destino and endereco_real <= fim_destino:
+            if base_origem <= base_destino <= fim_origem:
+                if base_destino <= endereco_real <= fim_destino:
                     return True, destino
     return False, None
-#seguinte, aqui ele vai verificar se o segmento invade o outro e se ta nas regras de gpf tlgd
+
 def desenhar_mapa(canvas, intervalos, acesso, destino_invadido=None):
-#apartir daqui o negocio foge um pouco do python de fato e fica muito lado do canvas
     canvas.delete("all")
     canvas.configure(bg="black")
     largura = 180
@@ -52,11 +53,10 @@ def desenhar_mapa(canvas, intervalos, acesso, destino_invadido=None):
     segmentos = sorted(intervalos.items(), key=lambda x: x[1][0])
     min_addr = segmentos[0][1][0]
     max_addr = segmentos[-1][1][1]
-    escala = (altura_total - 2 * margem) / (max_addr - min_addr)
+    escala = (altura_total - 2 * margem) / (max_addr - min_addr) if max_addr > min_addr else 1
 
     canvas.create_rectangle(60, margem, largura, altura_total - margem, outline="white", width=2)
     canvas.create_text((60 + largura) // 2, altura_total - margem + 15, text="MEMORIA", fill="white", font=("Courier", 14, "bold"))
-    # agora o nome "MEMORIA" ta embaixo
 
     cores = {
         "CS": "cyan",
@@ -71,12 +71,11 @@ def desenhar_mapa(canvas, intervalos, acesso, destino_invadido=None):
 
         cor = cores.get(nome, "gray")
         meio_y = (y1 + y2) / 2
-
         fill_segment = "#222222" if nome == destino_invadido else ""
-        canvas.create_rectangle(60, y2, largura, y1, outline=cor, width=2, fill=fill_segment)
 
-        canvas.create_line(60, y1, largura, y1, fill=cor, width=1)  # linha interna
-        canvas.create_line(60, y2, largura, y2, fill=cor, width=1)  # linha interna
+        canvas.create_rectangle(60, y2, largura, y1, outline=cor, width=2, fill=fill_segment)
+        canvas.create_line(60, y1, largura, y1, fill=cor, width=1)
+        canvas.create_line(60, y2, largura, y2, fill=cor, width=1)
 
         canvas.create_line(largura, y1, largura + 20, y1, fill=cor, width=2)
         canvas.create_text(largura + 25, y1 - 5, anchor="w", fill=cor, font=("Courier", 10, "bold"), text=f"{hex(inicio)[2:].upper()}")
@@ -105,7 +104,8 @@ def simular():
     segmento_real = identificar_segmento(endereco_fisico, intervalos)
 
     base_origem = int(reg_values[origem].get(), 16) * 16
-    fim_origem = base_origem + 0xFFFF
+    limite_origem = int(reg_limits[origem].get(), 16)
+    fim_origem = base_origem + limite_origem
 
     texto = f"Endere\u00e7o f\u00edsico: {hex(endereco_fisico)}\n"
     texto += f"Segmento onde o endere\u00e7o cai: {segmento_real}\n"
@@ -120,7 +120,7 @@ def simular():
         texto += "\n\u26A0\uFE0F GPF: Endere\u00e7o fora da mem\u00f3ria!"
     elif ocorreu_gpf:
         texto += f"\n\u274C GPF: {origem} invadiu {destino_invadido}\n"
-        texto += f"Motivo: a base de {destino_invadido} est\u00e1 dentro da faixa de 64KB de {origem}, e o acesso ({hex(endereco_fisico)}) caiu dentro dessa regi\u00e3o."
+        texto += f"Motivo: a base de {destino_invadido} est\u00e1 dentro da faixa de {origem}, e o acesso ({hex(endereco_fisico)}) caiu dentro dessa regi\u00e3o."
     else:
         texto += f"\n\u2705 Acesso permitido: {origem} \u2192 {segmento_real}"
 
@@ -129,47 +129,51 @@ def simular():
 
 # Interface
 root = tk.Tk()
-root.title("Simulador de GPF - Vers\u00e3o Final")
-root.geometry("800x680")
-#formatacao do tamanho inicial da mini interface
+root.title("Simulador de GPF - Com Limites Definidos")
+root.geometry("860x700")
 
 main_frame = ttk.Frame(root, padding=12)
 main_frame.pack(fill="both", expand=True)
 
 left_frame = ttk.Frame(main_frame)
-left_frame.pack(side="left", fill="y")
+left_frame.pack(side="left", fill="y", padx=10)
 
 right_frame = ttk.Frame(main_frame)
 right_frame.pack(side="right", fill="both", expand=True)
 
 ttk.Label(left_frame, text="Segmento de origem (quem acessa):").grid(row=0, column=0, sticky="w")
 origem_var = tk.StringVar(value="CS")
-ttk.Combobox(left_frame, textvariable=origem_var, values=["CS", "SS", "DS", "ES"], width=10).grid(row=0, column=1)
-# cria o botão alternavel apara selecionar os segmentos nessa ordem ai que eu jogueui 
+ttk.Combobox(left_frame, textvariable=origem_var, values=["CS", "SS", "DS", "ES"], width=10).grid(row=0, column=1, columnspan=3, sticky="w")
+
 reg_values = {}
+reg_limits = {}
 row = 1
 for reg in ["CS", "SS", "DS", "ES"]:
-    ttk.Label(left_frame, text=f"Valor de {reg} (hex):").grid(row=row, column=0, sticky="w")
+    ttk.Label(left_frame, text=f"Base de {reg} (hex):").grid(row=row, column=0, sticky="w")
     reg_values[reg] = tk.StringVar(value="0000")
-    ttk.Entry(left_frame, textvariable=reg_values[reg], width=10).grid(row=row, column=1)
+    ttk.Entry(left_frame, textvariable=reg_values[reg], width=8).grid(row=row, column=1)
+
+    ttk.Label(left_frame, text=f"Limite (hex):").grid(row=row, column=2, sticky="w")
+    reg_limits[reg] = tk.StringVar(value="FFFF")
+    ttk.Entry(left_frame, textvariable=reg_limits[reg], width=6).grid(row=row, column=3)
     row += 1
-# inicia o valor que cada base de endereço como 0000 para ser alterado 
+
 ttk.Label(left_frame, text="Segmento de destino (usado no c\u00e1lculo):").grid(row=row, column=0, sticky="w")
 destino_var = tk.StringVar(value="DS")
-ttk.Combobox(left_frame, textvariable=destino_var, values=["CS", "SS", "DS", "ES"], width=10).grid(row=row, column=1)
+ttk.Combobox(left_frame, textvariable=destino_var, values=["CS", "SS", "DS", "ES"], width=10).grid(row=row, column=1, columnspan=3, sticky="w")
 row += 1
-# mesmo esquema do primero soq agora eh o de saida
+
 ttk.Label(left_frame, text="Offset (hex):").grid(row=row, column=0, sticky="w")
 offset_var = tk.StringVar(value="0000")
-ttk.Entry(left_frame, textvariable=offset_var, width=10).grid(row=row, column=1)
+ttk.Entry(left_frame, textvariable=offset_var, width=10).grid(row=row, column=1, columnspan=3, sticky="w")
 row += 1
-# mesmo esquema das bases do segmento soq agora eh pra escolher o valor do offset
-ttk.Button(left_frame, text="Simular", command=simular).grid(row=row, column=0, columnspan=2, pady=10)
+
+ttk.Button(left_frame, text="Simular", command=simular).grid(row=row, column=0, columnspan=4, pady=10)
 row += 1
-#botao de simular 
+
 resultado_var = tk.StringVar()
-ttk.Label(left_frame, textvariable=resultado_var, foreground="white", background="black", justify="left", wraplength=360).grid(row=row, column=0, columnspan=2)
-#resultado da parada toda, se da gpf ou nao, enfim 
+ttk.Label(left_frame, textvariable=resultado_var, foreground="white", background="black", justify="left", wraplength=380).grid(row=row, column=0, columnspan=4, pady=5)
+
 mapa_canvas = Canvas(right_frame, width=400, height=520, bg="black")
 mapa_canvas.pack(padx=10, pady=10)
 
