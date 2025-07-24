@@ -11,7 +11,6 @@ Gabriel Barreto:
 
 Daniel Barreto:
 - def responsavel por calcular os intervalos de cada segmento
-- def responsavel opor identificar
 
 Davi JC:
 - def responsavel por verificar se ocorre a gpf dentro do simulador
