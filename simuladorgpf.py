@@ -34,14 +34,19 @@ def gpf_ocorre(origem, endereco_real, intervalos):
     base_origem = int(reg_values[origem].get(), 16) * 16
     limite_origem = int(reg_limits[origem].get(), 16)
     fim_origem = base_origem + limite_origem
+
     for destino, (base_destino, fim_destino) in intervalos.items():
         if destino == origem:
             continue
         if (origem, destino) in REGRAS_GPF:
-            if base_origem <= base_destino <= fim_origem:
-                if base_destino <= endereco_real <= fim_destino:
-                    return True, destino
+            # 1) há sobreposição entre as faixas?
+            ha_overlap = not (fim_origem < base_destino or fim_destino < base_origem)
+            # 2) o endereço acessado cai dentro do destino?
+            dentro_do_destino = base_destino <= endereco_real <= fim_destino
+            if ha_overlap and dentro_do_destino:
+                return True, destino
     return False, None
+
 
 def desenhar_mapa(canvas, intervalos, acesso, destino_invadido=None):
     canvas.delete("all")
@@ -94,7 +99,7 @@ def simular():
     offset_hex = offset_var.get()
 
     try:
-        seg_base_hex = reg_values[destino_logico].get()
+        seg_base_hex = reg_values[origem].get()
         endereco_fisico = calcular_endereco_fisico(seg_base_hex, offset_hex)
     except:
         resultado_var.set("\u274C Erro: valores inv\u00e1lidos")
